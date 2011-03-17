@@ -7,8 +7,10 @@
     </head>
     <body>
         <div class="mainoutline">
-        <h3>Ian Webster's</h3>
-        <h1>Facebook Friend Monitor</h1>
+        <span class="loud">Facebook Friend Monitor</span><br>
+        <span class="blurb">by Ian Webster</span>
+        <br>
+        
         {% if current_user %}
             <p><a href="{{ current_user.profile_url }}"><img src="http://graph.facebook.com/{{ current_user.id }}/picture"/></a></p>
             <p>You are logged in as {{ current_user.name|escape }}.</p>
@@ -26,10 +28,9 @@
                 Here are friend(s) that are no longer showing up on your friends list:
                 <ul>
                 {% for person in current_user.missing %}
-                    <li>{{person|escape}}</li>
+                    <li><strong>{{person|escape}}</strong></li>
                 {% endfor %}
                 </ul>
-
                 People can go missing from your friends list for a couple of reasons:
                 <ol>
                     <li>They've deactivated their Facebook accounts</li>
@@ -47,7 +48,7 @@
         {% else %}
         <p><strong>Log in with Facebook to begin tracking your friends list.</strong>
         <br>When you visit this page in the future, we'll let you know if anyone's gone from your list.</p>
-        <p><a href="/auth/login">Get started</a></p>
+        <p><a href="/auth/login">Login</a></p>
         {% endif %}
         </div>
     </body>

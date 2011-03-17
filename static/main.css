@@ -22,10 +22,17 @@ a:hover {
     color: #220022;
 }
 
-.body{
+.body {
     background-color: #eee;
-    font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New;
-    font-size: 14px;
+}
+
+.loud {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.blurb {
+    font-size: 12px;
 }
 
 .h1 {
