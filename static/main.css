@@ -1,0 +1,47 @@
+a:link {
+    color: #AB0A32;
+}
+
+a.speciallink:link {
+    color: #08a600;
+}
+
+a.speciallink:visited {
+    color: #08a600;
+}
+
+a.speciallink:hover {
+    color: #220022;
+}
+
+a:visited {
+    color: #AB0A32;
+}
+
+a:hover {
+    color: #220022;
+}
+
+.body{
+    background-color: #eee;
+    font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New;
+    font-size: 14px;
+}
+
+.h1 {
+    text-align: center;
+}
+
+.h3 {
+    text-align: center;
+}
+
+.mainoutline {
+    border-width: 1px;
+    border-style: solid;
+    border-color: #ddd;
+    width: 80%;
+    padding: 10px;
+    margin-left: auto;
+    margin-right: auto;
+}

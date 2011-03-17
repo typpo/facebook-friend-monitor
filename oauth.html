@@ -1,0 +1,54 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+        <title>Facebook Monitor</title>
+        <link type="text/css" rel="stylesheet" href="/static/main.css" />
+    </head>
+    <body>
+        <div class="mainoutline">
+        <h3>Ian Webster's</h3>
+        <h1>Facebook Friend Monitor</h1>
+        {% if current_user %}
+            <p><a href="{{ current_user.profile_url }}"><img src="http://graph.facebook.com/{{ current_user.id }}/picture"/></a></p>
+            <p>You are logged in as {{ current_user.name|escape }}.</p>
+            {% if updated %}
+                <p>
+                Your friends list was <strong>updated</strong> just now.
+                </p>
+            {% endif %}
+
+            <p>
+            {% if current_user.friends %}
+                Tracking {{ current_user.friends|length }}+ friends.
+            {% endif %}
+            {% if current_user.missing %}
+                Here are friend(s) that are no longer showing up on your friends list:
+                <ul>
+                {% for person in current_user.missing %}
+                    <li>{{person|escape}}</li>
+                {% endfor %}
+                </ul>
+
+                People can go missing from your friends list for a couple of reasons:
+                <ol>
+                    <li>They've deactivated their Facebook accounts</li>
+                    <li>Facebook's API isn't providing the complete list (this happens)</li>
+                    <li>They've DEFRIENDED you (or you've defriended them)</li>
+                </ol>
+            {% else %}
+                No people are missing from your list.  Come back in a bit and we'll let you know if any of your friends have gone missing.
+            {% endif %}
+            </p>
+            <p>
+            <a href="javascript:this.location.reload();">Refresh</a><br><br>
+            <a href="/auth/logout">Log out</a>
+            </p>
+        {% else %}
+        <p><strong>Log in with Facebook to begin tracking your friends list.</strong>
+        <br>When you visit this page in the future, we'll let you know if anyone's gone from your list.</p>
+        <p><a href="/auth/login">Get started</a></p>
+        {% endif %}
+        </div>
+    </body>
+</html>
