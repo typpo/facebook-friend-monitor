@@ -43,6 +43,11 @@ a:hover {
     text-align: center;
 }
 
+.footer {
+    text-align: center;
+    font-size: 10px;
+}
+
 .mainoutline {
     border-width: 1px;
     border-style: solid;

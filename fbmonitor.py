@@ -177,12 +177,9 @@ def do_compare(user=None, profile=None, access_token=None):
             name=profile["name"], access_token=access_token, \
             profile_url=profile["link"], \
             friends=friend_ids, \
-            missing=missing)
+            missing=[])
 
     user.put()
-
-    return missing
-
 
 def set_cookie(response, name, value, domain=None, path="/", expires=None):
     """Generates and signs a cookie for the give name/value"""
