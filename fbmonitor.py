@@ -87,7 +87,7 @@ class HomeHandler(BaseHandler):
 class LoginHandler(BaseHandler):
     def get(self):
         verification_code = self.request.get("code")
-        args = dict(client_id=FACEBOOK_APP_ID, redirect_uri=self.request.path_url, scope="offline_access")
+        args = dict(client_id=FACEBOOK_APP_ID, redirect_uri=self.request.path_url, scope="email,offline_access")
         if self.request.get("code"):
             args["client_secret"] = FACEBOOK_APP_SECRET
             args["code"] = self.request.get("code")
@@ -129,6 +129,7 @@ class LogoutHandler(BaseHandler):
         set_cookie(self.response, "fb_user", "", expires=time.time() - 86400)
         self.redirect("/")
 
+
 # Compares versions of friends list
 # user is specified if the user is already logged in but a certain amount of
 #   time has passed since the last refresh
@@ -167,7 +168,7 @@ def do_compare(user=None, profile=None, access_token=None):
                 if type(info) == bool:
                     # facebook failed, so skip and save for some future check
                     failed.append(f)
-                    logging.warning(key + ' failed lookup on ' + loadme)
+                    logging.warning(user.id + ' failed lookup on ' + loadme)
                 elif "name" in info:
                     logging.debug(user.id + ' found missing ' + info["name"])
                     missing.append(info["name"] + ':' + f)
