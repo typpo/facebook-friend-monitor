@@ -42,10 +42,10 @@ class User(db.Model):
     created = db.DateTimeProperty(auto_now_add=True)
     updated = db.DateTimeProperty(auto_now=True)
     name = db.StringProperty(required=True)
-    profile_url = db.StringProperty(required=True)
     access_token = db.StringProperty(required=True)
     friends = db.StringListProperty(required=True)
     missing = db.StringListProperty(required=True)
+    can_email = db.BooleanProperty(required=False)
 
 
 class BaseHandler(webapp.RequestHandler):
@@ -147,6 +147,9 @@ def do_compare(user=None, profile=None, access_token=None):
     except DownloadError:
         return False
 
+    if not friends_data or "data" not in friends_data:
+        return False
+
     friend_ids = [x["id"] for x in friends_data["data"]]
 
     # Update user info
@@ -175,18 +178,22 @@ def do_compare(user=None, profile=None, access_token=None):
 
         friend_ids.extend(failed)
 
+        user.missing = missing
+        user.friends = friend_ids
+        """
         user = User(key_name=user.id, id=user.id, \
             name=user.name, access_token=access_token, \
-            profile_url=user.profile_url, \
             friends=friend_ids, \
-            missing=missing)
+            missing=missing, \
+            can_email=True)
+        """
     else:
         logging.debug('bootstrapping')
         user = User(key_name=profile["id"], id=str(profile["id"]), \
             name=profile["name"], access_token=access_token, \
-            profile_url=profile["link"], \
             friends=friend_ids, \
-            missing=[])
+            missing=[], \
+            can_email=True)
 
     user.put()
     return True
