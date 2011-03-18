@@ -168,15 +168,16 @@ def do_compare(user=None, profile=None, access_token=None):
                     # facebook failed, so skip and save for some future check
                     failed.append(f)
                     logging.warning(key + ' failed lookup on ' + loadme)
-                    continue
-                if "name" in info:
+                elif "name" in info:
                     logging.debug(user.id + ' found missing ' + info["name"])
                     missing.append(info["name"] + ':' + f)
+
+        friend_ids.extend(failed)
 
         user = User(key_name=user.id, id=user.id, \
             name=user.name, access_token=access_token, \
             profile_url=user.profile_url, \
-            friends=friend_ids.extend(failed), \
+            friends=friend_ids, \
             missing=missing)
     else:
         logging.debug('bootstrapping')
