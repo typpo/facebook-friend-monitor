@@ -14,19 +14,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-"""A barebones AppEngine application that uses Facebook for login.
-
-This application uses OAuth 2.0 directly rather than relying on Facebook's
-JavaScript SDK for login. It also accesses the Facebook Graph API directly
-rather than using the Python SDK. It is designed to illustrate how easy
-it is to use the Facebook Platform without any third party code.
-
-See the "appengine" directory for an example using the JavaScript SDK.
-Using JavaScript is recommended if it is feasible for your application,
-as it handles some complex authentication states that can only be detected
-in client-side code.
-"""
-
 FACEBOOK_APP_ID = "172469002787534"
 FACEBOOK_APP_SECRET = "5e4f10d636ea301cd232df4a758c4fd5"
 
@@ -47,6 +34,7 @@ from google.appengine.ext import db
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.ext.webapp import template
+from google.appengine.api.urlfetch import DownloadError
 
 
 class User(db.Model):
@@ -150,9 +138,13 @@ def do_compare(user=None, profile=None, access_token=None):
         access_token = user.access_token
         
     # Load friends data
-    friends_data = json.load(urllib.urlopen(
-        "https://graph.facebook.com/me/friends?" +
-        urllib.urlencode(dict(access_token=access_token))))
+    try:
+        friends_data = json.load(urllib.urlopen(
+            "https://graph.facebook.com/me/friends?" +
+            urllib.urlencode(dict(access_token=access_token))))
+    except DownloadError:
+        return
+
     friend_ids = [x["id"] for x in friends_data["data"]]
 
     # Update user info
