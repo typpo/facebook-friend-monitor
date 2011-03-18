@@ -7,9 +7,7 @@
     </head>
     <body>
         <div class="mainoutline">
-        <span class="loud">Facebook Friend Monitor</span><br>
-        <span class="blurb">by Ian Webster</span>
-        <br>
+        <h1>Facebook Friend Monitor</h1>
         
         {% if current_user %}
             <p><a href="{{ current_user.profile_url }}"><img src="http://graph.facebook.com/{{ current_user.id }}/picture"/></a></p>
@@ -52,6 +50,6 @@
             <p><a href="/auth/login">Login</a></p>
         {% endif %}
         </div>
-        <div class="footer">Home | <a href="/pages/about.html">About</a>| <a href="http://facebook.com/ianww">Ian Webster</a> </div>
+        <div class="footer">Home | <a href="/pages/about.html">About</a>| by <a href="http://ianww.com">Ian Webster</a> </div>
     </body>
 </html>
