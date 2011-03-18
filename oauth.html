@@ -24,13 +24,14 @@
             {% if current_user.friends %}
                 Tracking {{ current_user.friends|length }}+ friends.
             {% endif %}
-            {% if current_user.missing %}
-                Here are friend(s) that are no longer showing up on your friends list:
+            {% if splits %}
+                These friends no longer show up on your friends list:
                 <ul>
-                {% for person in current_user.missing %}
-                    <li><strong>{{person|escape}}</strong></li>
+                {% for person in splits %}
+                <div class="imagewrap"><img src="http://graph.facebook.com/{{person.1}}/picture"/></div><strong>{{person.0|escape}}</strong><br><br>
                 {% endfor %}
                 </ul>
+
                 People can go missing from your friends list for a couple of reasons:
                 <ol>
                     <li>They've deactivated their Facebook accounts</li>

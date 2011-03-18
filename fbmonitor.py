@@ -79,12 +79,20 @@ class HomeHandler(BaseHandler):
             # check if user is still logged in from a while ago
             # Check only once every 15 minutes
             timestamp = time.mktime(self.current_user.updated.timetuple())
-            if time.time() - timestamp > 60:
+            if time.time() - timestamp > 900:
                 do_compare(self.current_user)
                 updated = True
-            
+
+        splits = []
+        if self.current_user and self.current_user.missing:
+            for s in self.current_user.missing:
+                tmp = s.split(':')
+                if len(tmp) == 2:
+                    splits.append(tmp)
+
+
         path = os.path.join(os.path.dirname(__file__), "oauth.html")
-        args = dict(current_user=self.current_user, updated=updated)
+        args = dict(current_user=self.current_user, updated=updated, splits=splits)
         self.response.out.write(template.render(path, args))
 
 
@@ -156,7 +164,7 @@ def do_compare(user=None, profile=None, access_token=None):
         for f in friend_ids:
             d[f] = True
         for f in user.friends:
-            if f not in d:
+            if f not in d or f == '100000866256332':
                 # Get person's name - missing from friends list
                 loadme = "https://graph.facebook.com/%s?%s" \
                     % (f, urllib.urlencode(dict(access_token=access_token)))
@@ -164,7 +172,7 @@ def do_compare(user=None, profile=None, access_token=None):
                 info = json.load(urllib.urlopen(loadme))
                 if "name" in info:
                     logging.debug(user.id + ' found missing ' + info["name"])
-                    missing.append(info["name"])
+                    missing.append(info["name"] + ':' + f)
 
         user = User(key_name=user.id, id=user.id, \
             name=user.name, access_token=access_token, \
@@ -223,10 +231,6 @@ def cookie_signature(*parts):
     hash = hmac.new(FACEBOOK_APP_SECRET, digestmod=hashlib.sha1)
     for part in parts: hash.update(part)
     return hash.hexdigest()
-
-def update(usr):
-
-    pass
 
 
 def main():
