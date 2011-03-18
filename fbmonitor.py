@@ -65,11 +65,11 @@ class HomeHandler(BaseHandler):
         updated = False
         if self.current_user:
             # check if user is still logged in from a while ago
-            # Check only once every 15 minutes
+            # Check only once every 5 minutes
             timestamp = time.mktime(self.current_user.updated.timetuple())
-            if time.time() - timestamp > 900:
-                do_compare(self.current_user)
-                updated = True
+            if time.time() - timestamp > 300:
+                if do_compare(self.current_user):
+                    updated = True
 
         splits = []
         if self.current_user and self.current_user.missing:
@@ -98,6 +98,7 @@ class LoginHandler(BaseHandler):
 
             # Download the user profile and cache a local instance of the
             # basic profile info
+            # TODO handle failure
             profile = json.load(urllib.urlopen(
                 "https://graph.facebook.com/me?" +
                 urllib.urlencode(dict(access_token=access_token))))
@@ -143,7 +144,7 @@ def do_compare(user=None, profile=None, access_token=None):
             "https://graph.facebook.com/me/friends?" +
             urllib.urlencode(dict(access_token=access_token))))
     except DownloadError:
-        return
+        return False
 
     friend_ids = [x["id"] for x in friends_data["data"]]
 
@@ -153,15 +154,21 @@ def do_compare(user=None, profile=None, access_token=None):
         logging.debug('running comparison')
         d = {}
         missing = []
+        failed = []
         for f in friend_ids:
             d[f] = True
         for f in user.friends:
-            if f not in d or f == '100000866256332':
+            if f not in d:
                 # Get person's name - missing from friends list
                 loadme = "https://graph.facebook.com/%s?%s" \
                     % (f, urllib.urlencode(dict(access_token=access_token)))
                 logging.debug(user.id + ' loading ' + loadme)
                 info = json.load(urllib.urlopen(loadme))
+                if type(info) == bool:
+                    # facebook failed, so skip and save for some future check
+                    failed.append(f)
+                    logging.warning(key + ' failed lookup on ' + loadme)
+                    continue
                 if "name" in info:
                     logging.debug(user.id + ' found missing ' + info["name"])
                     missing.append(info["name"] + ':' + f)
@@ -169,7 +176,7 @@ def do_compare(user=None, profile=None, access_token=None):
         user = User(key_name=user.id, id=user.id, \
             name=user.name, access_token=access_token, \
             profile_url=user.profile_url, \
-            friends=friend_ids, \
+            friends=friend_ids.extend(failed), \
             missing=missing)
     else:
         logging.debug('bootstrapping')
@@ -180,6 +187,7 @@ def do_compare(user=None, profile=None, access_token=None):
             missing=[])
 
     user.put()
+    return True
 
 def set_cookie(response, name, value, domain=None, path="/", expires=None):
     """Generates and signs a cookie for the give name/value"""
