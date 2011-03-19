@@ -15,7 +15,7 @@
 # under the License.
 
 # Activate for local deployment
-DEBUG = True
+DEBUG = False
 
 if DEBUG:
     FACEBOOK_APP_ID = '183916088320307'
