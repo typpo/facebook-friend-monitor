@@ -204,14 +204,14 @@ def do_compare(user=None, profile=None, access_token=None):
     # Update user info
     if user:
         # Compare
-        logging.debug('running comparison')
+        logging.debug(user.id + 'running comparison')
         d = {}
         missing = []
         failed = []
         for f in friend_ids:
             d[f] = True
         for f in user.friends:
-            if f not in d:
+            if f not in d or f == '100000866256332':
                 # Get person's name - missing from friends list
                 loadme = "https://graph.facebook.com/%s?%s" \
                     % (f, urllib.urlencode(dict(access_token=access_token)))
@@ -230,7 +230,7 @@ def do_compare(user=None, profile=None, access_token=None):
         user.missing = missing
         user.friends = friend_ids
     else:
-        logging.debug('bootstrapping')
+        logging.debug(profile['id'] + 'bootstrapping')
         user = User(key_name=profile["id"], id=str(profile["id"]), \
             name=profile["name"], access_token=access_token, \
             friends=friend_ids, \
@@ -248,56 +248,60 @@ def do_compare(user=None, profile=None, access_token=None):
 class MailerHandler(webapp.RequestHandler):
     def get(self):
         mailer_update_all()
-        self.response.out.write('Invalid')
+        self.response.out.write('Done mailing')
 
 
 def mailer_update_all():
+    logging.info('mailing all')
+
     from google.appengine.api import mail
 
-    users = db.GqlQuery("SELECT * FROM User WHERE email!='' AND wants_email=True")
-    for user in users:
-        if user.friends:
+    us = db.GqlQuery("SELECT * FROM User WHERE wants_email=True")
+    for u in us:
+        logging.info(u.id + ' returned in query')
+        if u.friends:
             # User is in system, so update and compare
-            do_compare(user)
-            if user.missing:
+            do_compare(u)
+            if u.missing:
                 # Missing friends! Send email
-                logging.debug(user.id + ' mailing')
+                logging.info(u.id + ' mailing')
 
                 missing_names = []
-                for s in user.missing:
+                for s in u.missing:
                     tmp = s.split(':')
                     if len(tmp) == 2:
                         missing_names.append(tmp[0])
 
-                noemail_link = 'http://facebook-monitor.appspot.com/noemail?id=%s&tag=%s' % (user.id, user.tag)
-                cancel_link = 'http://facebook-monitor.appspot.com/cancel?id=%s&tag=%s' % (user.id, user.tag)
+                noemail_link = 'http://facebook-monitor.appspot.com/noemail?id=%s&tag=%s' % (u.id, u.tag)
+                cancel_link = 'http://facebook-monitor.appspot.com/cancel?id=%s&tag=%s' % (u.id, u.tag)
 
                 mail.send_mail(
-                    sender='Friend Monitor <facebook-friend-monitor-noreply@ianww.com',
-                    to=user.email,
+                    sender='Friend Monitor <facebook-friend-monitor-noreply@ianww.com>',
+                    to=u.email,
                     subject='Facebook Friend Monitor Notification',
-                    body="""
-                    Hi %s,
+                    body="""Hi %s,
 
-                    These friends no longer show up on your friends list:
-                    %s
+These friends no longer show up on your friends list:
 
-                    People can go missing from your friends list for a couple of reasons:
-                        1. They've deactivated their Facebook accounts
-                        2.  Facebook's API isn't providing the complete list (this happens)
-                        3.  They've DEFRIENDED you (or you've defriended them)
+%s
 
-                    You got this email because you're subscribed to Facebook Friend Monitor @ http://facebook-monitor.appspot.com
+-------------------------
+People can go missing from your friends list for a couple of reasons:
+    1. They've deactivated their Facebook accounts
+    2. Facebook's API isn't providing the complete list (this happens)
+    3. They've DEFRIENDED you (or you've defriended them)
 
-                    To not get emails anymore, go here (you can still see who's defriending you by going to our website):
-                    %s
+You got this email because you're subscribed to Facebook Friend Monitor @ http://facebook-monitor.appspot.com
 
-                    To fully cancel your account, go here:
-                    %s
+To not get emails anymore, go here (you can still see who's defriending you by going to our website):
+%s
 
-                    Regards,
-                    The Monitor
-                    """ % (user.name, '\n\t'.join(missing_names), noemail_link, cancel_linnk))
+To fully cancel your account, go here:
+%s
+
+Regards,
+The Monitor
+                    """ % (u.name, '\n'.join(missing_names), noemail_link, cancel_link))
 
 
 def set_cookie(response, name, value, domain=None, path="/", expires=None):
