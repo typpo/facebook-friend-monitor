@@ -206,7 +206,7 @@ def do_compare(user=None, profile=None, access_token=None):
         for f in friend_ids:
             d[f] = True
         for f in user.friends:
-            if f not in d or f == '100000866256332':
+            if f not in d:
                 # Get person's name - missing from friends list
                 loadme = "https://graph.facebook.com/%s?%s" \
                     % (f, urllib.urlencode(dict(access_token=access_token)))
@@ -279,7 +279,7 @@ def mailer_update_all():
                 cancel_link = 'http://facebook-monitor.appspot.com/cancel?id=%s&tag=%s' % (u.id, u.tag)
 
                 mail.send_mail(
-                    sender='Friend Monitor <facebook-friend-monitor-noreply@ianww.com>',
+                    sender='Friend Monitor <friend.monitor.noreply@facebook-monitor.appspotmail.com>',
                     to=u.email,
                     subject='Facebook Friend Monitor Notification',
                     body="""Hi %s,
