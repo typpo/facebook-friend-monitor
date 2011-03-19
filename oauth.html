@@ -44,15 +44,24 @@
             <a href="javascript:this.location.reload();">Refresh</a><br><br>
             <a href="/auth/logout">Log out</a><br><br>
 
-            {% if current_user.wants_email %}
-            Right now you are set to receive email notifications on defriending.  If you do not want to receive these notifications, click <a href="/noemail?id={{current_user.id}}&tag={{current_user.tag}}">here</a>.
+            {% if current_user.wants_email and current_user.tag %}
+                <span class="blurb">
+                Right now you are set to receive email notifications on defriending.  If you do not want to receive these notifications, click <a href="/noemail?id={{current_user.id}}&tag={{current_user.tag}}">here</a>.
+                </span>
             {% else %}
             {% if not current_user.wants_email and current_user.email %}
-            Right now you are set to NOT receive email notifications on defriending.  If you do not want to receive these notifications, click <a href="/yesemail?id={{current_user.id}}&tag={{current_user.tag}}">here</a>.
+                <span class="blurb">
+                Right now you are set to NOT receive email notifications on defriending.  If you want to receive these notifications, click <a href="/yesemail?id={{current_user.id}}&tag={{current_user.tag}}">here</a>.
+                </span>
             {% endif %}
-            {% endif %}<br>
+            {% endif %}
 
-            To remove all your data from this app, click <a href="javascript:if(confirm('Are you sure?'))document.location='http://facebook-monitor.appspot.com/cancel?id={{current_user.id}}&tag={{current_user.tag}}'">here</a>.
+            {% if current_user.tag%}
+                <br>
+                <span class="blurb">
+                To remove all your data from this app, click <a href="javascript:if(confirm('Are you sure?'))document.location='http://facebook-monitor.appspot.com/cancel?id={{current_user.id}}&tag={{current_user.tag}}'">here</a>.
+                </span>
+            {% endif %}
 
             </p>
         {% else %}

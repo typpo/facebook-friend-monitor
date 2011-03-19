@@ -141,7 +141,7 @@ class CancelHandler(BaseHandler):
         user = User.get_by_key_name(id)
         if user and user.tag == tag:
             user.delete()
-            self.response.out.write('Your data has been wiped from this app')
+            self.response.out.write('<html><head><meta http-equiv="refresh" content="2;url=http://facebook-monitor.appspot.com"></head><body>Your data has been wiped from this app</body></html>')
         else:
             self.response.out.write('Invalid')
 
@@ -154,7 +154,7 @@ class NoEmailHandler(BaseHandler):
         if user and user.tag == tag:
             self.current_user.wants_email = False
             self.current_user.put()
-            self.response.out.write('You will no longer receive emails from this app')
+            self.response.out.write('<html><head><meta http-equiv="refresh" content="2;url=http://facebook-monitor.appspot.com"></head><body>You will no longer receive emails from this app</body></html>')
         else:
             self.response.out.write('Invalid')
 
@@ -167,7 +167,7 @@ class YesEmailHandler(BaseHandler):
         if user and user.tag == tag:
             self.current_user.wants_email = True
             self.current_user.put()
-            self.response.out.write('You will now receive emails from this app')
+            self.response.out.write('<html><head><meta http-equiv="refresh" content="2;url=http://facebook-monitor.appspot.com"></head><body>You will now receive emails from this app</body></html>')
         else:
             self.response.out.write('Invalid')
 
