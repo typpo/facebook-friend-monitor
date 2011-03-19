@@ -17,6 +17,8 @@
 FACEBOOK_APP_ID = "172469002787534"
 FACEBOOK_APP_SECRET = "5e4f10d636ea301cd232df4a758c4fd5"
 
+import string
+from random import choice
 import base64
 import cgi
 import Cookie
@@ -45,7 +47,9 @@ class User(db.Model):
     access_token = db.StringProperty(required=True)
     friends = db.StringListProperty(required=True)
     missing = db.StringListProperty(required=True)
-    can_email = db.BooleanProperty(required=False)
+    email = db.EmailProperty(required=False)
+    wants_email = db.BooleanProperty(required=False)
+    tag = db.StringProperty(required=False)
 
 
 class BaseHandler(webapp.RequestHandler):
@@ -130,6 +134,44 @@ class LogoutHandler(BaseHandler):
         self.redirect("/")
 
 
+class CancelHandler(BaseHandler):
+    def get(self):
+        id = self.request.get('id', default_value='-1')
+        tag = self.request.get('tag', default_value='')
+        user = User.get_by_key_name(id)
+        if user and user.tag == tag:
+            user.delete()
+            self.response.out.write('Your data has been wiped from this app')
+        else:
+            self.response.out.write('Invalid')
+
+
+class NoEmailHandler(BaseHandler):
+    def get(self):
+        id = self.request.get('id', default_value='-1')
+        tag = self.request.get('tag', default_value='')
+        user = User.get_by_key_name(id)
+        if user and user.tag == tag:
+            self.current_user.wants_email = False
+            self.current_user.put()
+            self.response.out.write('You will no longer receive emails from this app')
+        else:
+            self.response.out.write('Invalid')
+
+
+class YesEmailHandler(BaseHandler):
+    def get(self):
+        id = self.request.get('id', default_value='-1')
+        tag = self.request.get('tag', default_value='')
+        user = User.get_by_key_name(id)
+        if user and user.tag == tag:
+            self.current_user.wants_email = True
+            self.current_user.put()
+            self.response.out.write('You will now receive emails from this app')
+        else:
+            self.response.out.write('Invalid')
+
+
 # Compares versions of friends list
 # user is specified if the user is already logged in but a certain amount of
 #   time has passed since the last refresh
@@ -180,23 +222,64 @@ def do_compare(user=None, profile=None, access_token=None):
 
         user.missing = missing
         user.friends = friend_ids
-        """
-        user = User(key_name=user.id, id=user.id, \
-            name=user.name, access_token=access_token, \
-            friends=friend_ids, \
-            missing=missing, \
-            can_email=True)
-        """
     else:
         logging.debug('bootstrapping')
         user = User(key_name=profile["id"], id=str(profile["id"]), \
             name=profile["name"], access_token=access_token, \
             friends=friend_ids, \
             missing=[], \
-            can_email=True)
+            email=profile["email"], \
+            wants_email=True, \
+            tag = ''.join([choice(string.letters + string.digits) for i in range(10)]), \
+            )
 
     user.put()
     return True
+
+
+# Emails people who need to be notified
+def mailer_compare_all():
+    from google.appengine.api import mail
+
+    users = db.GqlQuery("SELECT * FROM User WHERE email!='' AND wants_email=True")
+    for user in users:
+        if user.friends:
+            # User is in system, so update and compare
+            do_compare(user)
+            if user.missing:
+                # Missing friends! Send email
+                logging.debug(user.id + ' mailing')
+
+                noemail_link = 'http://facebook-monitor.appspot.com/noemail?id=%s&tag=%s' % (user.id, user.tag)
+                cancel_link = 'http://facebook-monitor.appspot.com/cancel?id=%s&tag=%s' % (user.id, user.tag)
+
+                mail.send_mail(
+                    sender='Friend Monitor <facebook-friend-monitor-noreply@ianww.com',
+                    to=user.email,
+                    subject='Facebook Friend Monitor Notification',
+                    body="""
+                    Hi %s,
+
+                    These friends no longer show up on your friends list:
+                    %s
+
+                    People can go missing from your friends list for a couple of reasons:
+                        1. They've deactivated their Facebook accounts
+                        2.  Facebook's API isn't providing the complete list (this happens)
+                        3.  They've DEFRIENDED you (or you've defriended them)
+
+                    You got this email because you're subscribed to Facebook Friend Monitor @ http://facebook-monitor.appspot.com
+
+                    To not get emails anymore, go here (you can still see who's defriending you by going to our website):
+                    %s
+
+                    To fully cancel your account, go here:
+                    %s
+
+                    Regards,
+                    The Monitor
+                    """ % (user.name, '\n\t'.join(user.missing), noemail_link, cancel_linnk))
+
 
 def set_cookie(response, name, value, domain=None, path="/", expires=None):
     """Generates and signs a cookie for the give name/value"""
@@ -245,6 +328,9 @@ def cookie_signature(*parts):
 def main():
     util.run_wsgi_app(webapp.WSGIApplication([
         (r"/", HomeHandler),
+        (r"/noemail", NoEmailHandler),
+        (r"/yesemail", YesEmailHandler),
+        (r"/cancel", CancelHandler),
         (r"/auth/login", LoginHandler),
         (r"/auth/logout", LogoutHandler),
     ]))

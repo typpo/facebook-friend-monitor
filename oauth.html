@@ -42,7 +42,18 @@
             </p>
             <p>
             <a href="javascript:this.location.reload();">Refresh</a><br><br>
-            <a href="/auth/logout">Log out</a>
+            <a href="/auth/logout">Log out</a><br><br>
+
+            {% if current_user.wants_email %}
+            Right now you are set to receive email notifications on defriending.  If you do not want to receive these notifications, click <a href="/noemail?id={{current_user.id}}&tag={{current_user.tag}}">here</a>.
+            {% else %}
+            {% if not current_user.wants_email and current_user.email %}
+            Right now you are set to NOT receive email notifications on defriending.  If you do not want to receive these notifications, click <a href="/yesemail?id={{current_user.id}}&tag={{current_user.tag}}">here</a>.
+            {% endif %}
+            {% endif %}<br>
+
+            To remove all your data from this app, click <a href="javascript:if(confirm('Are you sure?'))document.location='http://facebook-monitor.appspot.com/cancel?id={{current_user.id}}&tag={{current_user.tag}}'">here</a>.
+
             </p>
         {% else %}
             <p><strong>Log in with Facebook to find out when someone's defriended you.</strong>
