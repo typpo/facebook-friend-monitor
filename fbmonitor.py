@@ -75,12 +75,8 @@ class HomeHandler(BaseHandler):
     def get(self):
         updated = False
         if self.current_user:
-            # check if user is still logged in from a while ago
-            # Check only once every 10 minutes
-            timestamp = time.mktime(self.current_user.updated.timetuple())
-            if time.time() - timestamp > 600:
-                if do_compare(self.current_user):
-                    updated = True
+            # user is still logged in from a while ago
+            updated = do_compare_on_interval(self.current_user)
 
         splits = []
         if self.current_user and self.current_user.missing:
@@ -88,7 +84,6 @@ class HomeHandler(BaseHandler):
                 tmp = s.split(':')
                 if len(tmp) == 2:
                     splits.append(tmp)
-
 
         path = os.path.join(os.path.dirname(__file__), "oauth.html")
         args = dict(current_user=self.current_user, updated=updated, splits=splits)
@@ -124,7 +119,7 @@ class LoginHandler(BaseHandler):
                 do_compare(profile=profile, access_token=access_token)
             else:
                 # update old
-                do_compare(person)
+                do_compare_on_interval(person)
 
             set_cookie(self.response, "fb_user", str(profile["id"]),
                        expires=time.time() + 30 * 86400)
@@ -242,6 +237,14 @@ def do_compare(user=None, profile=None, access_token=None):
 
     user.put()
     return True
+
+
+# Runs comparison only if 10 minutes have passed
+def do_compare_on_interval(user):
+    timestamp = time.mktime(user.updated.timetuple())
+    if time.time() - timestamp > 600:
+        return do_compare(user)
+    return False
 
 
 # Emails people who need to be notified
