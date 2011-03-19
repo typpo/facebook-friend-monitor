@@ -46,12 +46,12 @@
 
             {% if current_user.wants_email and current_user.tag %}
                 <span class="blurb">
-                Right now you are set to receive email notifications on defriending.  If you do not want to receive these notifications, click <a href="/noemail?id={{current_user.id}}&tag={{current_user.tag}}">here</a>.
+                You are set to receive email notifications on defriending.  If you do not want to receive these notifications, click <a href="/noemail?id={{current_user.id}}&tag={{current_user.tag}}">here</a>.
                 </span>
             {% else %}
             {% if not current_user.wants_email and current_user.email %}
                 <span class="blurb">
-                Right now you are set to NOT receive email notifications on defriending.  If you want to receive these notifications, click <a href="/yesemail?id={{current_user.id}}&tag={{current_user.tag}}">here</a>.
+                You are NOT set to receive email notifications on defriending.  If you want to receive these notifications, click <a href="/yesemail?id={{current_user.id}}&tag={{current_user.tag}}">here</a>.
                 </span>
             {% endif %}
             {% endif %}

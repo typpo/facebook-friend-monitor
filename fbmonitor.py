@@ -238,7 +238,7 @@ def do_compare(user=None, profile=None, access_token=None):
 
 
 # Emails people who need to be notified
-def mailer_compare_all():
+def mailer_update_all():
     from google.appengine.api import mail
 
     users = db.GqlQuery("SELECT * FROM User WHERE email!='' AND wants_email=True")
@@ -249,6 +249,12 @@ def mailer_compare_all():
             if user.missing:
                 # Missing friends! Send email
                 logging.debug(user.id + ' mailing')
+
+                missing_names = []
+                for s in user.missing:
+                    tmp = s.split(':')
+                    if len(tmp) == 2:
+                        missing_names.append(tmp[0])
 
                 noemail_link = 'http://facebook-monitor.appspot.com/noemail?id=%s&tag=%s' % (user.id, user.tag)
                 cancel_link = 'http://facebook-monitor.appspot.com/cancel?id=%s&tag=%s' % (user.id, user.tag)
@@ -278,7 +284,7 @@ def mailer_compare_all():
 
                     Regards,
                     The Monitor
-                    """ % (user.name, '\n\t'.join(user.missing), noemail_link, cancel_linnk))
+                    """ % (user.name, '\n\t'.join(missing_names), noemail_link, cancel_linnk))
 
 
 def set_cookie(response, name, value, domain=None, path="/", expires=None):
