@@ -1,0 +1,4 @@
+cron:
+- description: daily notification job
+  url: /crab_magnet
+  schedule: every day 00:00
