@@ -76,9 +76,9 @@ class HomeHandler(BaseHandler):
         updated = False
         if self.current_user:
             # check if user is still logged in from a while ago
-            # Check only once every 5 minutes
+            # Check only once every 10 minutes
             timestamp = time.mktime(self.current_user.updated.timetuple())
-            if time.time() - timestamp > 300:
+            if time.time() - timestamp > 600:
                 if do_compare(self.current_user):
                     updated = True
 
