@@ -14,8 +14,15 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-FACEBOOK_APP_ID = "172469002787534"
-FACEBOOK_APP_SECRET = "5e4f10d636ea301cd232df4a758c4fd5"
+# Activate for local deployment
+DEBUG = True
+
+if DEBUG:
+    FACEBOOK_APP_ID = '183916088320307'
+    FACEBOOK_APP_SECRET = '54eacbbd8cb433b68a67282f8d83fb0a'
+else:
+    FACEBOOK_APP_ID = "172469002787534"
+    FACEBOOK_APP_SECRET = "5e4f10d636ea301cd232df4a758c4fd5"
 
 import string
 from random import choice
@@ -238,6 +245,12 @@ def do_compare(user=None, profile=None, access_token=None):
 
 
 # Emails people who need to be notified
+class MailerHandler(webapp.RequestHandler):
+    def get(self):
+        mailer_update_all()
+        self.response.out.write('Invalid')
+
+
 def mailer_update_all():
     from google.appengine.api import mail
 
@@ -337,6 +350,7 @@ def main():
         (r"/noemail", NoEmailHandler),
         (r"/yesemail", YesEmailHandler),
         (r"/cancel", CancelHandler),
+        (r"/crab_magnet", MailerHandler),
         (r"/auth/login", LoginHandler),
         (r"/auth/logout", LogoutHandler),
     ]))
