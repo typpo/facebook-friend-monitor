@@ -10,7 +10,7 @@ handlers:
 - url: /pages
   static_dir: pages
 
-- url: /crab_magnet
+- url: /cron
   script: fbmonitor.py
   login: admin
 

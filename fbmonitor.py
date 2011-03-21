@@ -354,7 +354,7 @@ def main():
         (r"/noemail", NoEmailHandler),
         (r"/yesemail", YesEmailHandler),
         (r"/cancel", CancelHandler),
-        (r"/crab_magnet", MailerHandler),
+        (r"/cron", MailerHandler),
         (r"/auth/login", LoginHandler),
         (r"/auth/logout", LogoutHandler),
     ]))

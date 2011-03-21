@@ -1,4 +1,4 @@
 cron:
 - description: daily notification job
-  url: /crab_magnet
-  schedule: every day 05:00
+  url: /cron
+  schedule: every 30 minutes
