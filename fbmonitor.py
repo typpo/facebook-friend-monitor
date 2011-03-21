@@ -288,11 +288,8 @@ These friends no longer show up on your friends list:
 
 %s
 
--------------------------
-People can go missing from your friends list for a couple of reasons:
-    1. They've deactivated their Facebook accounts
-    2. Facebook's API isn't providing the complete list (this happens)
-    3. They've DEFRIENDED you (or you've defriended them)
+-----------------------------
+People can go missing from your friends list if they've DEFRIENDED you or you've defriended them.
 
 You got this email because you're subscribed to Facebook Friend Monitor @ http://facebook-monitor.appspot.com
 
