@@ -189,12 +189,21 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
         for f in friend_ids:
             d[f] = True
 
+        # Get list of possible defrienders we're already keeping track of
+        possible_defriends = db.GqlQuery("SELECT * FROM Suspect WHERE friend_id='%s'" % (user.id))
+        possible_defriend_ids = [x.fb_id for x in possible_defriends]
+
         for f in user.friends:
+
+            try:
+                idx = possible_defriend_ids.index(f)
+            except ValueError:
+                idx = -1
+
             if f in d:
                 # In friends list - so remove any missing records
-                s = Suspect.get_by_key_name(f+':'+user.id)
-                if s:
-                    s.delete()
+                if idx > -1:
+                    possible_defriends[idx].delete()
             else:
                 # Get person's name - missing from friends list
                 loadme = "https://graph.facebook.com/%s?%s" \
@@ -209,10 +218,10 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
                     logging.debug(user.id + ' found missing ' + info["name"])
 
                     # record possible defriender
-                    s = Suspect.get_by_key_name(f+':'+user.id)
-                    if s:
+                    if idx > -1:
                         # already exists, so update count
                         logging.warning('%s Found missing friend %s, incrementing count' % (user.id, f))
+                        s = possible_defriends[idx]
                         s.missing_count += 1
                     else:
                         # create new
