@@ -10,6 +10,11 @@ indexes:
 # automatically uploaded to the admin console when you next deploy
 # your application using appcfg.py.
 
+- kind: Suspect
+  properties:
+  - name: friend_id
+  - name: missing_count
+
 - kind: User
   properties:
   - name: wants_email

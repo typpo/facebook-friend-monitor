@@ -1,4 +1,4 @@
 cron:
 - description: daily notification job
   url: /cron
-  schedule: every 30 minutes
+  schedule: every day 04:00

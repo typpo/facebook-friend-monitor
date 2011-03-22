@@ -16,6 +16,9 @@ import hashlib
 import hmac
 import base64
 import Cookie
+import time
+import email.utils
+from constants import FACEBOOK_APP_ID, FACEBOOK_APP_SECRET
 
 def set_cookie(response, name, value, domain=None, path="/", expires=None):
     """Generates and signs a cookie for the give name/value"""

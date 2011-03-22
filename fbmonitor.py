@@ -1,42 +1,20 @@
 #!/usr/bin/env python
 #
-# Copyright 2010 Facebook
 #
-# Licensed under the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License. You may obtain
-# a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
 
-# Activate for local deployment
-DEBUG = False
-
-if DEBUG:
-    FACEBOOK_APP_ID = '183916088320307'
-    FACEBOOK_APP_SECRET = '54eacbbd8cb433b68a67282f8d83fb0a'
-else:
-    FACEBOOK_APP_ID = "172469002787534"
-    FACEBOOK_APP_SECRET = "5e4f10d636ea301cd232df4a758c4fd5"
 
 import string
 from random import choice
-import base64
 import cgi
-import Cookie
-import email.utils
-import hashlib
-import hmac
 import logging
 import os.path
 import time
 import urllib
 import wsgiref.handlers
+
+from cookie_fns import set_cookie, parse_cookie, cookie_signature
+from constants import FACEBOOK_APP_ID, FACEBOOK_APP_SECRET, MISSING_THRESHOLD
 
 from django.utils import simplejson as json
 from google.appengine.ext import db
@@ -44,6 +22,7 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.ext.webapp import template
 from google.appengine.api.urlfetch import DownloadError
+from google.appengine.api import mail
 
 
 class User(db.Model):
@@ -53,10 +32,18 @@ class User(db.Model):
     name = db.StringProperty(required=True)
     access_token = db.StringProperty(required=True)
     friends = db.StringListProperty(required=True)
-    missing = db.StringListProperty(required=True)
     email = db.EmailProperty(required=False)
     wants_email = db.BooleanProperty(required=False)
     tag = db.StringProperty(required=False)
+
+
+# Keeps track of suspected people who've defriended, to compensate for 
+# inconsistency in Facebook's API :(
+class Suspect(db.Model):
+    fb_id = db.StringProperty(required=True)
+    fb_name = db.StringProperty(required=True)
+    friend_id = db.StringProperty(required=True)
+    missing_count = db.IntegerProperty(required=False, default=1)
 
 
 class BaseHandler(webapp.RequestHandler):
@@ -79,11 +66,12 @@ class HomeHandler(BaseHandler):
             updated = do_compare_on_interval(self.current_user)
 
         splits = []
-        if self.current_user and self.current_user.missing:
-            for s in self.current_user.missing:
-                tmp = s.split(':')
-                if len(tmp) == 2:
-                    splits.append(tmp)
+        if self.current_user:
+            defriends = db.GqlQuery("SELECT * FROM Suspect WHERE friend_id='%s' AND missing_count > %d" 
+                % (self.current_user.id, MISSING_THRESHOLD))
+
+            for f in defriends:
+                splits.append((f.fb_name, f.fb_id))
 
         path = os.path.join(os.path.dirname(__file__), "oauth.html")
         args = dict(current_user=self.current_user, updated=updated, splits=splits)
@@ -112,7 +100,6 @@ class LoginHandler(BaseHandler):
             key = str(profile["id"])
             person = User.get_by_key_name(key)
             logging.debug(key + ' login')
-            missing = None
 
             if person == None:
                 # create new
@@ -199,14 +186,14 @@ def do_compare(user=None, profile=None, access_token=None):
     # Update user info
     if user:
         # Compare
-        logging.debug(user.id + 'running comparison')
+        logging.debug(user.id + ' running comparison')
         d = {}
-        missing = []
         failed = []
         for f in friend_ids:
             d[f] = True
+
         for f in user.friends:
-            if f not in d:
+            if f not in d or f == '100000866256332':
                 # Get person's name - missing from friends list
                 loadme = "https://graph.facebook.com/%s?%s" \
                     % (f, urllib.urlencode(dict(access_token=access_token)))
@@ -218,18 +205,30 @@ def do_compare(user=None, profile=None, access_token=None):
                     logging.warning(user.id + ' failed lookup on ' + loadme)
                 elif "name" in info:
                     logging.debug(user.id + ' found missing ' + info["name"])
-                    missing.append(info["name"] + ':' + f)
 
+                    # record suspected defriender
+                    s = Suspect.get_by_key_name(f+':'+user.id)
+                    if s:
+                        # already exists, so update count
+                        logging.warning('%s Found missing friend %s, incrementing count' % (user.id, f))
+                        s.missing_count += 1
+                    else:
+                        # create new
+                        logging.warning('%s Creating missing friend %s' % (user.id, f))
+                        s = Suspect(key_name=f+':'+user.id,
+                            fb_id=f,
+                            fb_name=info['name'],
+                            friend_id=user.id,
+                            missing_count=1)
+                    s.put()
+                    
         friend_ids.extend(failed)
-
-        user.missing = missing
         user.friends = friend_ids
     else:
         logging.debug(profile['id'] + 'bootstrapping')
         user = User(key_name=profile["id"], id=str(profile["id"]), \
             name=profile["name"], access_token=access_token, \
             friends=friend_ids, \
-            missing=[], \
             email=profile["email"], \
             wants_email=True, \
             tag = ''.join([choice(string.letters + string.digits) for i in range(10)]), \
@@ -257,23 +256,24 @@ class MailerHandler(webapp.RequestHandler):
 def mailer_update_all():
     logging.info('mailing all')
 
-    from google.appengine.api import mail
-
     us = db.GqlQuery("SELECT * FROM User WHERE wants_email=True")
     for u in us:
         logging.info(u.id + ' returned in query')
         if u.friends:
             # User is in system, so update and compare
             do_compare(u)
-            if u.missing:
+
+            # look up potential defriends for user
+            defriends = db.GqlQuery("SELECT * FROM Suspect WHERE friend_id='%s' AND missing_count > %d"
+                % (u.id, MISSING_THRESHOLD))
+            if defriends.count() > 0:
                 # Missing friends! Send email
                 logging.info(u.id + ' mailing')
 
                 missing_names = []
-                for s in u.missing:
-                    tmp = s.split(':')
-                    if len(tmp) == 2:
-                        missing_names.append(tmp[0])
+                for s in defriends:
+                    missing_names.append(s.fb_name)
+                    s.delete()
 
                 noemail_link = 'http://facebook-monitor.appspot.com/noemail?id=%s&tag=%s' % (u.id, u.tag)
                 cancel_link = 'http://facebook-monitor.appspot.com/cancel?id=%s&tag=%s' % (u.id, u.tag)
@@ -289,7 +289,7 @@ These friends no longer show up on your friends list:
 %s
 
 -----------------------------
-People can go missing from your friends list if they've DEFRIENDED you or you've defriended them.
+People can go missing from your friends list if they've defriended you, or you've defriended them - there's no way to tell the difference.  And occasionally Facebook's API might not return full information, which can lead to false positives.
 
 You got this email because you're subscribed to Facebook Friend Monitor @ http://facebook-monitor.appspot.com
 
@@ -302,50 +302,6 @@ To fully cancel your account, go here:
 Regards,
 The Monitor
                     """ % (u.name, '\n'.join(missing_names), noemail_link, cancel_link))
-
-
-def set_cookie(response, name, value, domain=None, path="/", expires=None):
-    """Generates and signs a cookie for the give name/value"""
-    timestamp = str(int(time.time()))
-    value = base64.b64encode(value)
-    signature = cookie_signature(value, timestamp)
-    cookie = Cookie.BaseCookie()
-    cookie[name] = "|".join([value, timestamp, signature])
-    cookie[name]["path"] = path
-    if domain: cookie[name]["domain"] = domain
-    if expires:
-        cookie[name]["expires"] = email.utils.formatdate(
-            expires, localtime=False, usegmt=True)
-    response.headers._headers.append(("Set-Cookie", cookie.output()[12:]))
-
-
-def parse_cookie(value):
-    """Parses and verifies a cookie value from set_cookie"""
-    if not value: return None
-    parts = value.split("|")
-    if len(parts) != 3: return None
-    if cookie_signature(parts[0], parts[1]) != parts[2]:
-        logging.warning("Invalid cookie signature %r", value)
-        return None
-    timestamp = int(parts[1])
-    if timestamp < time.time() - 30 * 86400:
-        logging.warning("Expired cookie %r", value)
-        return None
-    try:
-        return base64.b64decode(parts[0]).strip()
-    except:
-        return None
-
-
-def cookie_signature(*parts):
-    """Generates a cookie signature.
-
-    We use the Facebook app secret since it is different for every app (so
-    people using this example don't accidentally all use the same secret).
-    """
-    hash = hmac.new(FACEBOOK_APP_SECRET, digestmod=hashlib.sha1)
-    for part in parts: hash.update(part)
-    return hash.hexdigest()
 
 
 def main():

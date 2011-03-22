@@ -1,5 +1,5 @@
 # Activate for local deployment
-DEBUG = True
+DEBUG = False
 
 if DEBUG:
     FACEBOOK_APP_ID = '183916088320307'
@@ -7,3 +7,6 @@ if DEBUG:
 else:
     FACEBOOK_APP_ID = "172469002787534"
     FACEBOOK_APP_SECRET = "5e4f10d636ea301cd232df4a758c4fd5"
+
+# Number of times a friend doesn't appear in friends list to be deemed missing
+MISSING_THRESHOLD = 5
