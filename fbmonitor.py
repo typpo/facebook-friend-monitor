@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-#
+# Google App Engine app for tracking Facebook defriends
 #
 
 
@@ -89,9 +89,7 @@ class LoginHandler(BaseHandler):
                 urllib.urlencode(args)).read())
             access_token = response["access_token"][-1]
 
-            # Download the user profile and cache a local instance of the
-            # basic profile info
-            # TODO handle failure
+            # TODO handle failure here:
             profile = json.load(urllib.urlopen(
                 "https://graph.facebook.com/me?" +
                 urllib.urlencode(dict(access_token=access_token))))
@@ -164,7 +162,7 @@ class YesEmailHandler(BaseHandler):
 # user is specified if the user is already logged in but a certain amount of
 #   time has passed since the last refresh
 # profile, access_token are specified if the user is logging in 
-def do_compare(user=None, profile=None, access_token=None):
+def do_compare(user=None, profile=None, access_token=None, force_complete_update=False):
 
     if not access_token:
         access_token = user.access_token
@@ -230,7 +228,8 @@ def do_compare(user=None, profile=None, access_token=None):
                         readd.append(f)
                     s.put()
                     
-        friend_ids.extend(readd)
+        if not force_complete_update:
+            friend_ids.extend(readd)
         user.friends = friend_ids
     else:
         logging.debug(profile['id'] + 'bootstrapping')
@@ -257,9 +256,13 @@ def do_compare_on_interval(user):
 # For forcing updates
 class TestHandler(BaseHandler):
     def get(self):
-        if self.current_user:
-            do_compare(self.current_user)
+        id = self.request.get('id', default_value='-1')
+        u = User.get_by_key_name(id)
+        if u:
+            do_compare(u, force_complete_update=True)
             self.response.out.write('ok')
+        else:
+            self.response.out.write('invalid')
 
 
 # Emails people who need to be notified
@@ -269,6 +272,7 @@ class MailerHandler(webapp.RequestHandler):
         self.response.out.write('Done mailing')
 
 
+# Runs comparisons and mails out as necessary
 def mailer_update_all():
     logging.info('mailing all')
 

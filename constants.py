@@ -1,4 +1,4 @@
-# Activate for local deployment
+# Activate for local testing/deployment
 DEBUG = False
 
 if DEBUG:
