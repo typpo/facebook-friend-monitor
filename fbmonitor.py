@@ -14,7 +14,7 @@ import urllib
 import wsgiref.handlers
 
 from cookie_fns import set_cookie, parse_cookie, cookie_signature
-from constants import FACEBOOK_APP_ID, FACEBOOK_APP_SECRET, MISSING_THRESHOLD
+from constants import FACEBOOK_APP_ID, FACEBOOK_APP_SECRET, MISSING_THRESHOLD, EMAIL_TEMPLATE
 
 from django.utils import simplejson as json
 from google.appengine.ext import db
@@ -61,12 +61,11 @@ class BaseHandler(webapp.RequestHandler):
 class HomeHandler(BaseHandler):
     def get(self):
         updated = False
+        splits = []
         if self.current_user:
             # user is still logged in from a while ago
             updated = do_compare_on_interval(self.current_user)
 
-        splits = []
-        if self.current_user:
             defriends = db.GqlQuery("SELECT * FROM Suspect WHERE friend_id='%s' AND missing_count > %d" 
                 % (self.current_user.id, MISSING_THRESHOLD))
 
@@ -188,7 +187,7 @@ def do_compare(user=None, profile=None, access_token=None):
         # Compare
         logging.debug(user.id + ' running comparison')
         d = {}
-        failed = []
+        readd = []
         for f in friend_ids:
             d[f] = True
 
@@ -206,12 +205,12 @@ def do_compare(user=None, profile=None, access_token=None):
                 info = json.load(urllib.urlopen(loadme))
                 if type(info) == bool:
                     # facebook failed, so skip and save for some future check
-                    failed.append(f)
+                    readd.append(f)
                     logging.warning(user.id + ' failed lookup on ' + loadme)
                 elif "name" in info:
                     logging.debug(user.id + ' found missing ' + info["name"])
 
-                    # record suspected defriender
+                    # record possible defriender
                     s = Suspect.get_by_key_name(f+':'+user.id)
                     if s:
                         # already exists, so update count
@@ -225,9 +224,12 @@ def do_compare(user=None, profile=None, access_token=None):
                             fb_name=info['name'],
                             friend_id=user.id,
                             missing_count=1)
+
+                    # But keep it on the friends list for future comparisons
+                    readd.append(f)
                     s.put()
                     
-        friend_ids.extend(failed)
+        friend_ids.extend(readd)
         user.friends = friend_ids
     else:
         logging.debug(profile['id'] + 'bootstrapping')
@@ -287,26 +289,7 @@ def mailer_update_all():
                     sender='Friend Monitor <friend.monitor.noreply@facebook-monitor.appspotmail.com>',
                     to=u.email,
                     subject='Facebook Friend Monitor Notification',
-                    body="""Hi %s,
-
-These friends no longer show up on your friends list:
-
-%s
-
------------------------------
-People can go missing from your friends list if they've defriended you, or you've defriended them - there's no way to tell the difference.  And occasionally Facebook's API might not return full information, which can lead to false positives.
-
-You got this email because you're subscribed to Facebook Friend Monitor @ http://facebook-monitor.appspot.com
-
-To not get emails anymore, go here (you can still see who's defriending you by going to our website):
-%s
-
-To fully cancel your account, go here:
-%s
-
-Regards,
-The Monitor
-                    """ % (u.name, '\n'.join(missing_names), noemail_link, cancel_link))
+                    body= EMAIL_TEMPLATE % (u.name, '\n'.join(missing_names), noemail_link, cancel_link))
 
 
 def main():
