@@ -225,8 +225,9 @@ def do_compare(user=None, profile=None, access_token=None):
                             friend_id=user.id,
                             missing_count=1)
 
-                    # But keep it on the friends list for future comparisons
-                    readd.append(f)
+                    # keep it on the friends list for future comparisons, if necessary
+                    if s.missing_count <= MISSING_THRESHOLD:
+                        readd.append(f)
                     s.put()
                     
         friend_ids.extend(readd)
@@ -275,7 +276,7 @@ def mailer_update_all():
                 % (u.id, MISSING_THRESHOLD))
             if defriends.count() > 0:
                 # Missing friends! Send email
-                logging.info(u.id + ' mailing')
+                logging.info(u.id + ' SENDING MAIL')
 
                 missing_names = []
                 for s in defriends:
