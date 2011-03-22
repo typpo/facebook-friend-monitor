@@ -193,7 +193,12 @@ def do_compare(user=None, profile=None, access_token=None):
             d[f] = True
 
         for f in user.friends:
-            if f not in d:
+            if f in d:
+                # In friends list - so remove any missing records
+                s = Suspect.get_by_key_name(f+':'+user.id)
+                if s:
+                    s.delete()
+            else:
                 # Get person's name - missing from friends list
                 loadme = "https://graph.facebook.com/%s?%s" \
                     % (f, urllib.urlencode(dict(access_token=access_token)))
@@ -238,10 +243,10 @@ def do_compare(user=None, profile=None, access_token=None):
     return True
 
 
-# Runs comparison only if 10 minutes have passed
+# Runs comparison only if 15 minutes have passed
 def do_compare_on_interval(user):
     timestamp = time.mktime(user.updated.timetuple())
-    if time.time() - timestamp > 600:
+    if time.time() - timestamp > 900:
         return do_compare(user)
     return False
 
