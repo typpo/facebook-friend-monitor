@@ -254,6 +254,14 @@ def do_compare_on_interval(user):
     return False
 
 
+# For forcing updates
+class TestHandler(BaseHandler):
+    def get(self):
+        if self.current_user:
+            do_compare(self.current_user)
+            self.response.out.write('ok')
+
+
 # Emails people who need to be notified
 class MailerHandler(webapp.RequestHandler):
     def get(self):
@@ -300,6 +308,7 @@ def main():
         (r"/yesemail", YesEmailHandler),
         (r"/cancel", CancelHandler),
         (r"/cron", MailerHandler),
+        (r"/test", TestHandler),
         (r"/auth/login", LoginHandler),
         (r"/auth/logout", LogoutHandler),
     ]))
