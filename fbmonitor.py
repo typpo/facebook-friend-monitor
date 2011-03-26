@@ -183,7 +183,7 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
     # Update user info
     if user:
         # Compare
-        logging.debug(user.id + ' running comparison')
+        logging.debug(user.id + ' running comparison!')
         d = {}
         readd = []
         for f in friend_ids:
@@ -192,17 +192,19 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
         # Get list of possible defrienders we're already keeping track of
         possible_defriends = db.GqlQuery("SELECT * FROM Suspect WHERE friend_id='%s'" % (user.id))
         possible_defriend_ids = [x.fb_id for x in possible_defriends]
+        logging.debug(user.id + ' retrieved ' + str(len(possible_defriend_ids)) + ' suspect records')
 
         for f in user.friends:
-
             try:
                 idx = possible_defriend_ids.index(f)
+                logging.debug(user.id + ' recalling ' + f + ' is potential defriender')
             except ValueError:
                 idx = -1
 
             if f in d:
                 # In friends list - so remove any missing records
                 if idx > -1:
+                    logging.debug(user.id + ' deleting potential defriender that\'s been found')
                     possible_defriends[idx].delete()
             else:
                 # Get person's name - missing from friends list
@@ -241,6 +243,7 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
             friend_ids.extend(readd)
         user.friends = friend_ids
     else:
+        # Create new
         logging.debug(profile['id'] + 'bootstrapping')
         user = User(key_name=profile["id"], id=str(profile["id"]), \
             name=profile["name"], access_token=access_token, \
@@ -263,12 +266,23 @@ def do_compare_on_interval(user):
 
 
 # For forcing updates
-class TestHandler(BaseHandler):
+class ResetHandler(BaseHandler):
     def get(self):
         id = self.request.get('id', default_value='-1')
         u = User.get_by_key_name(id)
         if u:
             do_compare(u, force_complete_update=True)
+            self.response.out.write('ok')
+        else:
+            self.response.out.write('invalid')
+
+
+class TestHandler(BaseHandler):
+    def get(self):
+        id = self.request.get('id', default_value='-1')
+        u = User.get_by_key_name(id)
+        if u:
+            do_compare(u)
             self.response.out.write('ok')
         else:
             self.response.out.write('invalid')
@@ -321,6 +335,7 @@ def main():
         (r"/yesemail", YesEmailHandler),
         (r"/cancel", CancelHandler),
         (r"/cron", MailerHandler),
+        (r"/reset", ResetHandler),
         (r"/test", TestHandler),
         (r"/auth/login", LoginHandler),
         (r"/auth/logout", LogoutHandler),
