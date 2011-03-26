@@ -138,8 +138,8 @@ class NoEmailHandler(BaseHandler):
         tag = self.request.get('tag', default_value='')
         user = User.get_by_key_name(id)
         if user and user.tag == tag:
-            self.current_user.wants_email = False
-            self.current_user.put()
+            user.wants_email = False
+            user.put()
             self.response.out.write('<html><head><meta http-equiv="refresh" content="2;url=http://facebook-monitor.appspot.com"></head><body>You will no longer receive emails from this app</body></html>')
         else:
             self.response.out.write('Invalid')
@@ -151,8 +151,8 @@ class YesEmailHandler(BaseHandler):
         tag = self.request.get('tag', default_value='')
         user = User.get_by_key_name(id)
         if user and user.tag == tag:
-            self.current_user.wants_email = True
-            self.current_user.put()
+            user.wants_email = True
+            user.put()
             self.response.out.write('<html><head><meta http-equiv="refresh" content="2;url=http://facebook-monitor.appspot.com"></head><body>You will now receive emails from this app</body></html>')
         else:
             self.response.out.write('Invalid')
