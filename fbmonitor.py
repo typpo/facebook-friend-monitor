@@ -11,6 +11,7 @@ import logging
 import os.path
 import time
 import urllib
+import urllib2
 import wsgiref.handlers
 
 from cookie_fns import set_cookie, parse_cookie, cookie_signature
@@ -84,13 +85,13 @@ class LoginHandler(BaseHandler):
         if self.request.get("code"):
             args["client_secret"] = FACEBOOK_APP_SECRET
             args["code"] = self.request.get("code")
-            response = cgi.parse_qs(urllib.urlopen(
+            response = cgi.parse_qs(urllib2.urlopen(
                 "https://graph.facebook.com/oauth/access_token?" +
                 urllib.urlencode(args)).read())
             access_token = response["access_token"][-1]
 
             # TODO handle failure here:
-            profile = json.load(urllib.urlopen(
+            profile = json.load(urllib2.urlopen(
                 "https://graph.facebook.com/me?" +
                 urllib.urlencode(dict(access_token=access_token))))
 
@@ -169,7 +170,7 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
         
     # Load friends data
     try:
-        friends_data = json.load(urllib.urlopen(
+        friends_data = json.load(urllib2.urlopen(
             "https://graph.facebook.com/me/friends?" +
             urllib.urlencode(dict(access_token=access_token))))
     except DownloadError:
@@ -208,10 +209,17 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
                     possible_defriends[idx].delete()
             else:
                 # Get person's name - missing from friends list
+                # TODO memcache this
                 loadme = "https://graph.facebook.com/%s?%s" \
                     % (f, urllib.urlencode(dict(access_token=access_token)))
                 logging.debug(user.id + ' loading ' + loadme)
-                info = json.load(urllib.urlopen(loadme))
+
+                try:
+                    info = json.load(urllib2.urlopen(loadme))
+                except DownloadError:
+                    friend_ids.append(f)
+                    continue
+
                 if type(info) == bool:
                     # facebook failed, so skip and save for some future check
                     readd.append(f)
