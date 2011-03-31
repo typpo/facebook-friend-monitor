@@ -14,7 +14,7 @@ MISSING_THRESHOLD = 10
 # Defriend email template
 EMAIL_TEMPLATE="""Hi %s,
 
-These friends no longer show up on your friends list:
+These people no longer show up on your friends list:
 
 %s
 
