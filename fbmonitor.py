@@ -173,7 +173,7 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
         friends_data = json.load(urllib2.urlopen(
             "https://graph.facebook.com/me/friends?" +
             urllib.urlencode(dict(access_token=access_token))))
-    except DownloadError:
+    except:
         return False
 
     if not friends_data or "data" not in friends_data:
@@ -312,7 +312,9 @@ def mailer_update_all():
         logging.info(u.id + ' returned in query')
         if u.friends:
             # User is in system, so update and compare
-            do_compare(u)
+            if not do_compare(u):
+                logging.warning(u.id + ' update failed, skipping')
+                continue
 
             # look up potential defriends for user
             defriends = db.GqlQuery("SELECT * FROM Suspect WHERE friend_id='%s' AND missing_count > %d"
