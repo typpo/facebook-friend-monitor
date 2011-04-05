@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import logging
 import hashlib
 import hmac
 import base64

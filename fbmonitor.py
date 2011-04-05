@@ -47,6 +47,12 @@ class Suspect(db.Model):
     missing_count = db.IntegerProperty(required=False, default=1)
 
 
+# Notifications to ignore
+class Ignore(db.Model):
+    fb_id = db.StringProperty(required=True)
+    friend_id = db.StringProperty(required=True)
+
+
 class BaseHandler(webapp.RequestHandler):
     @property
     def current_user(self):
@@ -159,6 +165,20 @@ class YesEmailHandler(BaseHandler):
             self.response.out.write('Invalid')
 
 
+class IgnoreHandler(BaseHandler):
+    def get(self):
+        id = self.request.get('id', default_value='-1')
+        ignore = self.request.get('ignore', default_value='-1')
+        tag = self.request.get('tag', default_value='')
+        user = User.get_by_key_name(id)
+        if user and user.tag == tag:
+            ignore = Ignore(fb_id=id, friend_id=ignore)
+            ignore.put()
+            self.response.out.write('<html><head><meta http-equiv="refresh" content="2;url=http://facebook-monitor.appspot.com"></head><body>You will no longer receive notification for this person</body></html>')
+        else:
+            self.response.out.write('Invalid')
+
+
 # Compares versions of friends list
 # user is specified if the user is already logged in but a certain amount of
 #   time has passed since the last refresh
@@ -195,7 +215,14 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
         possible_defriend_ids = [x.fb_id for x in possible_defriends]
         logging.debug(user.id + ' retrieved ' + str(len(possible_defriend_ids)) + ' suspect records')
 
+        # Get list of id to ignore
+        ignore = db.GqlQuery("SELECT * FROM Ignore WHERE fb_id='%s'" % (user.id))
+        ignore_ids = [x.friend_id for x in ignore]
+
         for f in user.friends:
+            if f in ignore_ids:
+                continue
+
             try:
                 idx = possible_defriend_ids.index(f)
                 logging.debug(user.id + ' recalling ' + f + ' is potential defriender')
@@ -307,13 +334,16 @@ class MailerHandler(webapp.RequestHandler):
 def mailer_update_all():
     logging.info('mailing all')
 
-    us = db.GqlQuery("SELECT * FROM User WHERE wants_email=True")
+    us = db.GqlQuery("SELECT * FROM User")
     for u in us:
         logging.info(u.id + ' returned in query')
         if u.friends:
             # User is in system, so update and compare
             if not do_compare(u):
                 logging.warning(u.id + ' update failed, skipping')
+                continue
+
+            if not u.wants_email:
                 continue
 
             # look up potential defriends for user
@@ -324,8 +354,10 @@ def mailer_update_all():
                 logging.info(u.id + ' SENDING MAIL')
 
                 missing_names = []
+                ignore_links = []
                 for s in defriends:
                     missing_names.append(s.fb_name)
+                    ignore_links.append('http://facebook-monitor.appspot.com/ignore?id=%s&tag=%s&ignore=%s - %s' % (u.id, u.tag, s.fb_id, s.fb_name))
                     s.delete()
 
                 noemail_link = 'http://facebook-monitor.appspot.com/noemail?id=%s&tag=%s' % (u.id, u.tag)
@@ -335,7 +367,7 @@ def mailer_update_all():
                     sender='Friend Monitor <friend.monitor.noreply@facebook-monitor.appspotmail.com>',
                     to=u.email,
                     subject='Facebook Friend Monitor Notification',
-                    body= EMAIL_TEMPLATE % (u.name, '\n'.join(missing_names), noemail_link, cancel_link))
+                    body= EMAIL_TEMPLATE % (u.name, '\n'.join(missing_names), '\n'.join(ignore_links), noemail_link, cancel_link,))
 
 
 def main():
@@ -343,6 +375,7 @@ def main():
         (r"/", HomeHandler),
         (r"/noemail", NoEmailHandler),
         (r"/yesemail", YesEmailHandler),
+        (r"/ignore", IgnoreHandler),
         (r"/cancel", CancelHandler),
         (r"/cron", MailerHandler),
         (r"/reset", ResetHandler),
