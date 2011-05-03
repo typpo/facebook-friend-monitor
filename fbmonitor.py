@@ -78,6 +78,7 @@ class HomeHandler(BaseHandler):
 
             for f in defriends:
                 splits.append((f.fb_name, f.fb_id))
+                f.delete()
 
         path = os.path.join(os.path.dirname(__file__), "oauth.html")
         args = dict(current_user=self.current_user, updated=updated, splits=splits)
