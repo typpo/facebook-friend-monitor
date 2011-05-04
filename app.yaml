@@ -14,6 +14,10 @@ handlers:
   script: fbmonitor.py
   login: admin
 
+- url: /updateuser
+  script: fbmonitor.py
+  login: admin
+
 - url: /test
   script: fbmonitor.py
   login: admin

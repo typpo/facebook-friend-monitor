@@ -24,6 +24,7 @@ from google.appengine.ext.webapp import util
 from google.appengine.ext.webapp import template
 from google.appengine.api.urlfetch import DownloadError
 from google.appengine.api import mail
+from google.appengine.api import taskqueue
 
 
 class User(db.Model):
@@ -237,7 +238,7 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
                     possible_defriends[idx].delete()
             else:
                 # Get person's name - missing from friends list
-                # TODO memcache this
+                # TODO memcache this probably
                 loadme = "https://graph.facebook.com/%s?%s" \
                     % (f, urllib.urlencode(dict(access_token=access_token)))
                 logging.debug(user.id + ' loading ' + loadme)
@@ -290,6 +291,7 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
             )
 
     user.put()
+    logging.warning('Done with comparison')
     return True
 
 
@@ -327,25 +329,40 @@ class TestHandler(BaseHandler):
 # Emails people who need to be notified
 class MailerHandler(webapp.RequestHandler):
     def get(self):
-        mailer_update_all()
-        self.response.out.write('Done mailing')
+        c = mailer_update_all()
+        self.response.out.write('created %d tasks' % (c))
 
 
-# Runs comparisons and mails out as necessary
+# Queues tasks for running comparisons
 def mailer_update_all():
     logging.info('mailing all')
 
-    us = db.GqlQuery("SELECT * FROM User")
+    us = User.all()
+    c = 0
     for u in us:
+        taskqueue.add(url='/updateuser', params={'key_name':u.id})
+        c += 1
+    return c
+
+
+# Runs comparison and mails out as necessary
+class UpdateUserWorker(webapp.RequestHandler):
+    def post(self):
+        key_name = self.request.get('key_name')
+        u = User.get_by_key_name(key_name)
+        if not u:
+            logging.warning(u.id + ' started task but not in system')
+            return
+
         logging.info(u.id + ' returned in query')
         if u.friends:
             # User is in system, so update and compare
             if not do_compare(u):
                 logging.warning(u.id + ' update failed, skipping')
-                continue
+                return
 
             if not u.wants_email:
-                continue
+                return
 
             # look up potential defriends for user
             defriends = db.GqlQuery("SELECT * FROM Suspect WHERE friend_id='%s' AND missing_count > %d"
@@ -379,6 +396,7 @@ def main():
         (r"/ignore", IgnoreHandler),
         (r"/cancel", CancelHandler),
         (r"/cron", MailerHandler),
+        (r"/updateuser", UpdateUserWorker),
         (r"/reset", ResetHandler),
         (r"/test", TestHandler),
         (r"/auth/login", LoginHandler),
