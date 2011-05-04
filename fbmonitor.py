@@ -201,12 +201,14 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
     if not friends_data or "data" not in friends_data:
         return False
 
+    # Get latest friend list
     friend_ids = [x["id"] for x in friends_data["data"]]
 
     # Update user info
     if user:
-        # Compare
         logging.debug(user.id + ' running comparison!')
+
+        # Turn latest friend list into a dict for lookups
         d = {}
         readd = []
         for f in friend_ids:
@@ -214,30 +216,34 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
 
         # Get list of possible defrienders we're already keeping track of
         possible_defriends = db.GqlQuery("SELECT * FROM Suspect WHERE friend_id='%s'" % (user.id))
-        possible_defriend_ids = [x.fb_id for x in possible_defriends]
         logging.debug(user.id + ' retrieved ' + str(len(possible_defriend_ids)) + ' suspect records')
 
         # Get list of id to ignore
         ignore = db.GqlQuery("SELECT * FROM Ignore WHERE fb_id='%s'" % (user.id))
         ignore_ids = [x.friend_id for x in ignore]
 
+        # Loop through old friend list and make sure everyone's still on our new list
         for f in user.friends:
             if f in ignore_ids:
+                # User-specified ignore
                 continue
 
-            try:
-                idx = possible_defriend_ids.index(f)
-                logging.debug(user.id + ' recalling ' + f + ' is potential defriender')
-            except ValueError:
-                idx = -1
+            # Check if this person is already in possible defriender list
+            possible_defriender = None
+            for pd in possible_defriends:
+                if pd.fb_id == f:
+                    possible_defriender  = pd
 
             if f in d:
-                # In friends list - so remove any missing records
-                if idx > -1:
+                # person in friends list now
+                if possible_defriender:
+                    # If we recorded this person as maybe defriending, we were wrong
                     logging.debug(user.id + ' deleting potential defriender that\'s been found')
-                    possible_defriends[idx].delete()
+                    possible_defriender.delete()
             else:
-                # Get person's name - missing from friends list
+                # person is missing from friends list
+
+                # Get their name
                 # TODO memcache this probably
                 loadme = "https://graph.facebook.com/%s?%s" \
                     % (f, urllib.urlencode(dict(access_token=access_token)))
@@ -250,31 +256,29 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
                     continue
 
                 if type(info) == bool:
-                    # facebook failed, so skip and save for some future check
+                    # Facebook failed, so skip and save for some future check
                     readd.append(f)
                     logging.warning(user.id + ' failed lookup on ' + loadme)
                 elif "name" in info:
+                    # Record possible defriender
                     logging.debug(user.id + ' found missing ' + info["name"])
-
-                    # record possible defriender
-                    if idx > -1:
-                        # already exists, so update count
+                    if possible_defriender:
+                        # Already exists, so update count
                         logging.warning('%s Found missing friend %s, incrementing count' % (user.id, f))
-                        s = possible_defriends[idx]
-                        s.missing_count += 1
+                        possible_defriender.missing_count += 1
                     else:
-                        # create new
+                        # Create new
                         logging.warning('%s Creating missing friend %s' % (user.id, f))
-                        s = Suspect(key_name=f+':'+user.id,
+                        possible_defriender = Suspect(key_name=f+':'+user.id,
                             fb_id=f,
                             fb_name=info['name'],
                             friend_id=user.id,
                             missing_count=1)
 
-                    # keep it on the friends list for future comparisons, if necessary
-                    if s.missing_count <= MISSING_THRESHOLD:
+                    # Keep person on the friends list for future comparisons, if necessary
+                    if possible_defriender.missing_count <= MISSING_THRESHOLD:
                         readd.append(f)
-                    s.put()
+                    possible_defriender.put()
                     
         if not force_complete_update:
             friend_ids.extend(readd)
@@ -331,6 +335,7 @@ class MailerHandler(webapp.RequestHandler):
     def get(self):
         c = mailer_update_all()
         self.response.out.write('created %d tasks' % (c))
+        logging.info('created %d tasks' % (c))
 
 
 # Queues tasks for running comparisons
@@ -340,7 +345,11 @@ def mailer_update_all():
     us = User.all()
     c = 0
     for u in us:
-        taskqueue.add(url='/updateuser', params={'key_name':u.id})
+        try:
+            taskqueue.add(url='/updateuser', params={'key_name':u.id})
+        except taskqueue.TransientError:
+            # Doesn't matter really
+            pass
         c += 1
     return c
 
