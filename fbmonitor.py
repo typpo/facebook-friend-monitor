@@ -216,7 +216,7 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
 
         # Get list of possible defrienders we're already keeping track of
         possible_defriends = db.GqlQuery("SELECT * FROM Suspect WHERE friend_id='%s'" % (user.id))
-        logging.debug(user.id + ' retrieved ' + str(len(possible_defriend_ids)) + ' suspect records')
+        logging.debug(user.id + ' retrieved suspect records')
 
         # Get list of id to ignore
         ignore = db.GqlQuery("SELECT * FROM Ignore WHERE fb_id='%s'" % (user.id))
