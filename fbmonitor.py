@@ -25,6 +25,7 @@ from google.appengine.ext.webapp import template
 from google.appengine.api.urlfetch import DownloadError
 from google.appengine.api import mail
 from google.appengine.api import taskqueue
+from google.appengine.api import memcache as mc
 
 
 class User(db.Model):
@@ -283,16 +284,18 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
         if not force_complete_update:
             friend_ids.extend(readd)
         user.friends = friend_ids
+        mc.set(user.id, user)
     else:
         # Create new
         logging.debug(profile['id'] + 'bootstrapping')
-        user = User(key_name=profile["id"], id=str(profile["id"]), \
+        user = User(key_name=profile['id'], id=str(profile["id"]), \
             name=profile["name"], access_token=access_token, \
             friends=friend_ids, \
             email=profile["email"], \
             wants_email=True, \
             tag = ''.join([choice(string.letters + string.digits) for i in range(10)]), \
             )
+        mc.set(profile['id'], user)
 
     user.put()
     logging.warning('Done with comparison')
@@ -358,7 +361,12 @@ def mailer_update_all():
 class UpdateUserWorker(webapp.RequestHandler):
     def post(self):
         key_name = self.request.get('key_name')
-        u = User.get_by_key_name(key_name)
+
+        u = mc.get(key_name)
+        if not u:
+            u = User.get_by_key_name(key_name)
+            mc.set(key_name, u)
+
         if not u:
             logging.warning(u.id + ' started task but not in system')
             return
