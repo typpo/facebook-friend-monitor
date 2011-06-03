@@ -15,7 +15,8 @@ import urllib2
 import wsgiref.handlers
 
 from cookie_fns import set_cookie, parse_cookie, cookie_signature
-from constants import FACEBOOK_APP_ID, FACEBOOK_APP_SECRET, MISSING_THRESHOLD, EMAIL_TEMPLATE
+from constants import MISSING_THRESHOLD, EMAIL_TEMPLATE
+from facebook_config import FACEBOOK_APP_ID, FACEBOOK_APP_SECRET
 
 from django.utils import simplejson as json
 from google.appengine.ext import db

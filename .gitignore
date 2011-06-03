@@ -1,2 +1,4 @@
 *.swp
 *.pyc
+*~
+facebook_config.py
