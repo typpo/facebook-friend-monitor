@@ -1,0 +1,3 @@
+Facebook Defriend Monitor
+
+Right now this works ok but has trouble scaling past a couple hundred people, at least within constraints of Google App Engine's free tier. :(
