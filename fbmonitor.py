@@ -138,6 +138,7 @@ class CancelHandler(BaseHandler):
         if user and user.tag == tag:
             user.delete()
             self.response.out.write('<html><head><meta http-equiv="refresh" content="2;url=http://facebook-monitor.appspot.com"></head><body>Your data has been wiped from this app</body></html>')
+            mc.set(id, None)
         else:
             self.response.out.write('Invalid')
 
@@ -151,6 +152,7 @@ class NoEmailHandler(BaseHandler):
             user.wants_email = False
             user.put()
             self.response.out.write('<html><head><meta http-equiv="refresh" content="2;url=http://facebook-monitor.appspot.com"></head><body>You will no longer receive emails from this app</body></html>')
+            mc.set(id, user)
         else:
             self.response.out.write('Invalid')
 
@@ -164,6 +166,7 @@ class YesEmailHandler(BaseHandler):
             user.wants_email = True
             user.put()
             self.response.out.write('<html><head><meta http-equiv="refresh" content="2;url=http://facebook-monitor.appspot.com"></head><body>You will now receive emails from this app</body></html>')
+            mc.set(id, user)
         else:
             self.response.out.write('Invalid')
 
@@ -180,6 +183,7 @@ class IgnoreHandler(BaseHandler):
             self.response.out.write('<html><head><meta http-equiv="refresh" content="2;url=http://facebook-monitor.appspot.com"></head><body>You will no longer receive notification for this person</body></html>')
         else:
             self.response.out.write('Invalid')
+
 
 
 # Compares versions of friends list
@@ -225,15 +229,15 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
 
         # Loop through old friend list and make sure everyone's still on our new list
         for f in user.friends:
+            # Skip User-specified ignores
             if f in ignore_ids:
-                # User-specified ignore
                 continue
 
             # Check if this person is already in possible defriender list
             possible_defriender = None
             for pd in possible_defriends:
                 if pd.fb_id == f:
-                    possible_defriender  = pd
+                    possible_defriender = pd
 
             if f in d:
                 # person in friends list now
@@ -245,7 +249,7 @@ def do_compare(user=None, profile=None, access_token=None, force_complete_update
                 # person is missing from friends list
 
                 # Get their name
-                # TODO memcache this probably
+                # TODO Make this a task
                 loadme = "https://graph.facebook.com/%s?%s" \
                     % (f, urllib.urlencode(dict(access_token=access_token)))
                 logging.debug(user.id + ' loading ' + loadme)
